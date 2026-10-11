@@ -383,7 +383,3 @@ Contributions, feedback, and issue reports are welcome! When contributing to Fin
 3. Keep documentation in `docs/` synchronized with architectural or API modifications.
 
 ---
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
