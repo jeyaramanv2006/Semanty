@@ -3,4 +3,4 @@
 Initial developer setup notes.
 
 ## Guidelines
-- Ensure test suite passes.
+- Verify tests before commit.
