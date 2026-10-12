@@ -95,3 +95,23 @@
   - Frontend client increments an `activeRequestId` on every search submission.
   - In-flight requests are aborted using `AbortController`.
   - Responses returning with a stale request ID are discarded before updating React state.
+
+---
+
+### `RSK-010`: Client Divergence During Engine Unification
+- **Context**: Multiple clients or a legacy CLI can maintain different storage, ranking, or pagination behavior.
+- **Impact**: Users see inconsistent results and fixes apply to only one interface.
+- **Mitigation Strategy**:
+  - Route the TUI and supported React client through the FastAPI API only.
+  - Remove the independent CLI engine after TUI parity.
+  - Test API contracts and client request identity against one hybrid result order.
+
+### `RSK-011`: TUI Terminal Capability Differences
+- **Context**: SSH, multiplexers, narrow terminals, `NO_COLOR`, and Unicode/font differences can change layout and input behavior.
+- **Impact**: Lost focus, clipped passages, unreadable status, or terminal state not restored on exit.
+- **Mitigation Strategy**:
+  - Use Textual's buffered rendering and capability-aware fallbacks.
+  - Keep labels and focus indicators meaningful without color.
+  - Test narrow/wide layouts, reduced color, paste, resize, PTY exit, and error recovery.
+
+Release note: automated backend and Textual checks pass. A real interactive PTY smoke test remains a machine/terminal-specific manual check and is not represented as an automated pass.

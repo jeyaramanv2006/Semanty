@@ -10,6 +10,7 @@ import concurrent.futures
 import logging
 import os
 import threading
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -57,6 +58,40 @@ class SyncWorker:
         """Returns True if a sync job is currently running for the directory."""
         with self._lock:
             return directory_id in self._active_directories
+
+    def wait_for_directory(self, directory_id: str, timeout: float = 30.0) -> None:
+        """Wait for queued/running jobs before pruning the directory's rows."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            with self._lock:
+                job_items = list(self._active_jobs.items())
+                active = directory_id in self._active_directories
+            futures = [future for job_id, future in job_items if self._job_directory(job_id) == directory_id]
+            for future in futures:
+                if future.done():
+                    continue
+                # A worker catches pipeline errors and records them in SQLite;
+                # this wait only synchronizes lifecycle ownership.
+                try:
+                    future.result(timeout=max(0.01, deadline - time.monotonic()))
+                except concurrent.futures.TimeoutError:
+                    break
+                except Exception:
+                    pass
+            with get_db(self.db_path) as conn:
+                row = conn.execute(
+                    "SELECT 1 FROM index_jobs WHERE directory_id = ? AND status IN ('QUEUED', 'RUNNING') LIMIT 1",
+                    (directory_id,),
+                ).fetchone()
+            if not active and row is None:
+                return
+            time.sleep(0.05)
+        raise TimeoutError(f"Timed out waiting for directory jobs: {directory_id}")
+
+    def _job_directory(self, job_id: str) -> Optional[str]:
+        with get_db(self.db_path) as conn:
+            row = conn.execute("SELECT directory_id FROM index_jobs WHERE job_id = ?", (job_id,)).fetchone()
+            return row["directory_id"] if row else None
 
     def start_sync(
         self,
@@ -761,7 +796,13 @@ class SyncWorker:
             )
 
         except Exception as e:
-            logger.error(f"Sync job '{job_id}' failed with exception: {e}", exc_info=True)
+            # A directory can be removed while a queued job is draining. That
+            # is a normal lifecycle race, not an application traceback.
+            missing_directory = "Registered directory missing" in str(e) or "not found in database" in str(e)
+            if missing_directory:
+                logger.info("Sync job '%s' ended after its directory was removed: %s", job_id, e)
+            else:
+                logger.error(f"Sync job '{job_id}' failed with exception: {e}", exc_info=True)
             with get_db(self.db_path) as conn:
                 cursor = conn.cursor()
                 cursor.execute(

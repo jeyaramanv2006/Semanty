@@ -9,4 +9,5 @@ from app.core import config
 
 if __name__ == "__main__":
     print(f"Starting FindIT backend server on http://{config.HOST}:{config.PORT} ...")
-    uvicorn.run("app.main:app", host=config.HOST, port=config.PORT, reload=True)
+    reload_enabled = os.getenv("FINDIT_RELOAD", "0").lower() in {"1", "true", "yes"}
+    uvicorn.run("app.main:app", host=config.HOST, port=config.PORT, reload=reload_enabled)

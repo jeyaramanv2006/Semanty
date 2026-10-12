@@ -5,7 +5,7 @@ Exposes hybrid retrieval combining dense FAISS and sparse BM25 via Reciprocal Ra
 
 from typing import Optional
 from fastapi import APIRouter, Query, HTTPException, status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.services.search_service import get_search_service, SearchResponse
 
@@ -13,10 +13,11 @@ router = APIRouter(tags=["Search"])
 
 
 class SearchRequestBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     query: str = Field(..., min_length=1, description="Search query string")
     limit: int = Field(default=10, ge=1, le=100, description="Max passages to return")
     offset: int = Field(default=0, ge=0, description="Pagination offset")
-    ranking_mode: str = Field(default="hybrid", description="Ranking strategy: hybrid, semantic, or lexical")
     include_diagnostics: bool = Field(default=False, description="Include raw retriever diagnostics")
 
 
@@ -24,8 +25,8 @@ class SearchRequestBody(BaseModel):
 async def search_passages_post(body: SearchRequestBody):
     """
     POST /api/search
-    Executes hybrid dense + lexical search using Reciprocal Rank Fusion (k=60),
-    or ranks primarily by semantic (dense) or lexical (sparse) matching.
+    Executes hybrid dense + lexical search using Reciprocal Rank Fusion (k=60)
+    and returns one unified backend-ranked result list.
     """
     service = get_search_service()
     try:
@@ -33,7 +34,6 @@ async def search_passages_post(body: SearchRequestBody):
             query=body.query,
             limit=body.limit,
             offset=body.offset,
-            ranking_mode=body.ranking_mode,
         )
         return response
     except Exception as e:
@@ -48,19 +48,23 @@ async def search_passages_get(
     q: str = Query(..., min_length=1, description="Search query string"),
     limit: int = Query(default=10, ge=1, le=100, description="Max passages to return"),
     offset: int = Query(default=0, ge=0, description="Pagination offset"),
-    ranking_mode: str = Query(default="hybrid", description="Ranking strategy: hybrid, semantic, or lexical"),
+    ranking_mode: Optional[str] = Query(default=None, include_in_schema=False),
 ):
     """
-    GET /api/search?q=...&limit=10&offset=0&ranking_mode=hybrid
+    GET /api/search?q=...&limit=10&offset=0
     Alternative GET endpoint for query-string-based search.
     """
+    if ranking_mode is not None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Ranking modes are not supported; search is always hybrid.",
+        )
     service = get_search_service()
     try:
         response = service.search(
             query=q,
             limit=limit,
             offset=offset,
-            ranking_mode=ranking_mode,
         )
         return response
     except Exception as e:

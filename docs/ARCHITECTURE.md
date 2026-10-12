@@ -7,11 +7,12 @@
 
 ## 1. System Topology & Architectural Overview
 
-FindIT is architected as a **local-first desktop search engine** consisting of a React + Vite frontend client communicating via HTTP/REST with a local Python + FastAPI backend service. 
+FindIT is architected as a **local-first desktop search engine** with a Python Textual TUI as its primary interactive client and a supported React + Vite client. Both communicate via HTTP/REST with one local Python + FastAPI backend service. The backend is the sole owner of indexing, storage, retrieval, and security policy.
 
 ```mermaid
 graph TB
-    subgraph UI_Client ["React + TypeScript Client (Vite)"]
+    subgraph UI_Client ["Interactive Clients"]
+        TUI["Textual TUI (Primary)"]
         HomeView["Home Search View"]
         ResultsView["Results & Passage View"]
         ModalManager["Indexed Directories Modal"]
@@ -36,6 +37,7 @@ graph TB
         ApprovedRoots["User-Approved Directory Roots\n(PDF, PPTX, MD, DOCX, Code, etc.)"]
     end
 
+    TUI -->|HTTP / JSON via Loopback| APIGateway
     UI_Client -->|HTTP / JSON via Loopback| APIGateway
     APIGateway --> SearchPipeline
     APIGateway --> JobManager
@@ -69,6 +71,12 @@ graph TB
 - **Embedding Service**: Executes local inference with `sentence-transformers/all-MiniLM-L6-v2`, returning 384-dimensional normalized vectors.
 - **Retrieval & Fusion Engine**: Queries FAISS and BM25 concurrently, merges candidate pools using Reciprocal Rank Fusion ($k=60$), and hydrates metadata from SQLite.
 - **OS Integration Bridge**: Dispatches native OS commands (e.g., `explorer.exe /select,` on Windows, `open -R` on macOS, `xdg-open` on Linux) to safely reveal files in their host directories.
+
+### 2.3 Textual TUI (Primary Interactive Client)
+- Uses the REST API only; it does not open the backend database or index files directly.
+- Presents a persistent source/job context, hybrid result list, and selected-passage inspector on wide terminals, with navigable overlays/views on narrow terminals.
+- Owns keyboard routing and focus, request identity/cancellation, selection by stable chunk ID, pagination, and recovery from backend or job errors.
+- Starts and stops a backend child process only when it owns that process; an already-running backend is never terminated by the TUI.
 
 ---
 
@@ -154,6 +162,7 @@ sequenceDiagram
 ### 4.1 Component Hierarchy
 ```text
 App
+React client
 ├── HomeSearch (Visible in "home" mode)
 │   ├── LogoBrand
 │   ├── TaglineDisplay ("Find what you remember.")
@@ -184,6 +193,13 @@ App
     │   └── DirectoryRow (Sync, Remove, File Count, Status)
     ├── AddDirectoryButton (OS Picker Trigger)
     └── RealtimeJobProgressIndicator
+
+Textual TUI
+├── Search input and persistent result list
+├── Directory/job context panel
+├── Passage inspector view
+├── Directory and sync command palette
+└── Contextual help and error/recovery overlays
 ```
 
 ### 4.2 State Machine & Transition Logic

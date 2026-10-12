@@ -1,3 +1,4 @@
+/* oxlint-disable react/set-state-in-effect -- sync refresh is intentional after backend jobs complete. */
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { IndexedDirectory, TrackedDocument, SyncJob } from '../types';
 import { pickNativeFolder, getDirectoryDocuments } from '../services/api';
@@ -46,6 +47,7 @@ export const DirectoriesModal: React.FC<DirectoriesModalProps> = ({
   // Re-fetch documents for the expanded directory when an active sync completes
   useEffect(() => {
     if (isOpen && expandedDirectoryId && !activeJob) {
+      // oxlint-disable-next-line react(set-state-in-effect)
       loadDocumentsForDirectory(expandedDirectoryId);
     }
   }, [isOpen, expandedDirectoryId, activeJob, loadDocumentsForDirectory]);

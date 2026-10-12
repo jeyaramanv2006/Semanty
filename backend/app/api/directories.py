@@ -98,56 +98,6 @@ def list_directory_documents(directory_id: str):
     return {"directory_id": directory_id, "documents": docs}
 
 
-@router.post("/{directory_id}/sync")
-def sync_directory(directory_id: str):
-    """
-    Triggers an incremental file scan and synchronization for a single directory.
-    """
-    try:
-        return DirectoryService.sync_directory(directory_id)
-    except DirectoryNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "error": {
-                    "code": "DIRECTORY_NOT_FOUND",
-                    "message": str(e),
-                }
-            },
-        )
-    except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={
-                "error": {
-                    "code": "SYNC_FAILED",
-                    "message": str(e),
-                }
-            },
-        )
-
-
-@router.post("/sync-all")
-def sync_all_directories():
-    """
-    Triggers incremental synchronization across all registered directories.
-    """
-    directories = DirectoryService.list_directories()
-    results = []
-    for d in directories:
-        try:
-            res = DirectoryService.sync_directory(d["directory_id"])
-            results.append(res)
-        except Exception as e:
-            results.append({"directory_id": d["directory_id"], "error": str(e)})
-
-    return {
-        "status": "COMPLETED",
-        "synced_directories": len(results),
-        "results": results,
-    }
-
-
 @router.post("/pick")
 def pick_native_directory():
     """

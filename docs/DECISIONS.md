@@ -191,3 +191,45 @@ This document records all fundamental architectural, technological, and algorith
 - **Consequences**:  
   - **Positive**: Instant 10x–15x acceleration on systems with NVIDIA GPUs; eliminates CPU thermal throttling during batch document indexing.
   - **Negative**: CUDA-enabled PyTorch builds require larger installation footprint (~2GB vs ~200MB).
+
+---
+
+### ADR-011: FastAPI Backend as the Authoritative Search Engine
+
+- **Date**: 2026-10-13
+- **Status**: `Accepted`
+- **Context**:
+  FindIT currently contains a FastAPI engine and an independent CLI engine with separate SQLite, FAISS, BM25, chunking, and retrieval behavior. This creates divergent results and makes fixes impossible to apply consistently.
+- **Decision**:
+  The FastAPI service and its SQLite/FAISS/BM25 stores are the sole authoritative engine. All interactive clients, including the TUI and React client, use the documented local REST API. The independent CLI engine and its storage format are retired after TUI parity is reached.
+- **Consequences**:
+  - **Positive**: One indexing lifecycle, one ranking implementation, one security boundary, and consistent results.
+  - **Negative**: Existing CLI-specific data must be reindexed through the backend.
+
+---
+
+### ADR-012: Textual TUI as the Primary Interactive Client
+
+- **Date**: 2026-10-13
+- **Status**: `Accepted`
+- **Context**:
+  FindIT needs a focused terminal workflow for search, passage inspection, directory management, and sync monitoring without duplicating the engine or degrading into a command-only REPL.
+- **Decision**:
+  Build a Python Textual TUI over the local REST API. It becomes the primary interactive client; the React client remains supported at core feature parity. The TUI auto-starts the backend only when it owns that process and stops only processes it started.
+- **Consequences**:
+  - **Positive**: Keyboard-first workflows, explicit focus, responsive panels, and a reusable API boundary.
+  - **Negative**: Textual becomes a required runtime dependency and terminal capability fallbacks must be tested.
+
+---
+
+### ADR-013: Unified Hybrid Ranking for User Interfaces
+
+- **Date**: 2026-10-13
+- **Status**: `Accepted`
+- **Context**:
+  The product requirements define one ranked list, while current clients expose semantic and lexical mode controls and perform client-side re-sorting.
+- **Decision**:
+  Normal user interfaces show only the backend's hybrid RRF ordering. Ranking diagnostics remain developer/test-only and are never used as user-facing confidence or score decoration.
+- **Consequences**:
+  - **Positive**: One understandable result order and no client/server ranking divergence.
+  - **Negative**: Advanced users lose visible per-retriever mode switching in the standard UI.

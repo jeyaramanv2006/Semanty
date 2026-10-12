@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TerracottaCanvas } from './components/TerracottaCanvas';
-import { RankingPopover } from './components/RankingPopover';
 import { SearchResultCard } from './components/SearchResultCard';
 import { PassageInspectorModal } from './components/PassageInspectorModal';
 import { DirectoriesModal } from './components/DirectoriesModal';
@@ -27,10 +26,8 @@ export function App() {
   const [totalAvailable, setTotalAvailable] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [pulseCount, setPulseCount] = useState(0);
-  const [sortBy, setSortBy] = useState<'hybrid' | 'semantic' | 'lexical'>('hybrid');
 
   // Popover & Modal States
-  const [rankingPopoverOpen, setRankingPopoverOpen] = useState(false);
   const [foldersModalOpen, setFoldersModalOpen] = useState(false);
   const [selectedPassage, setSelectedPassage] = useState<PassageDetail | null>(null);
 
@@ -43,26 +40,6 @@ export function App() {
 
   const totalFilesIndexed = directories.reduce((acc, d) => acc + (d?.file_count || 0), 0);
 
-  const sortedResults = React.useMemo(() => {
-    if (sortBy === 'semantic') {
-      return [...results].sort((a, b) => {
-        const aSem = a.semantic_rank != null ? a.semantic_rank : 999999;
-        const bSem = b.semantic_rank != null ? b.semantic_rank : 999999;
-        if (aSem !== bSem) return aSem - bSem;
-        return (a.hybrid_rank ?? 99999) - (b.hybrid_rank ?? 99999);
-      });
-    }
-    if (sortBy === 'lexical') {
-      return [...results].sort((a, b) => {
-        const aLex = a.lexical_rank != null ? a.lexical_rank : 999999;
-        const bLex = b.lexical_rank != null ? b.lexical_rank : 999999;
-        if (aLex !== bLex) return aLex - bLex;
-        return (a.hybrid_rank ?? 99999) - (b.hybrid_rank ?? 99999);
-      });
-    }
-    return [...results].sort((a, b) => (a.hybrid_rank ?? 99999) - (b.hybrid_rank ?? 99999));
-  }, [results, sortBy]);
-
   // Load directories on mount
   useEffect(() => {
     getIndexedDirectories().then((dirs) => setDirectories(dirs));
@@ -74,8 +51,7 @@ export function App() {
   };
 
   const executeSearch = async (
-    searchTerm: string,
-    mode: 'hybrid' | 'semantic' | 'lexical' = sortBy
+    searchTerm: string
   ) => {
     if (!searchTerm.trim()) return;
 
@@ -83,29 +59,23 @@ export function App() {
     setIsLoading(true);
     setActiveQuery(searchTerm.trim());
     setViewState('results');
-    setRankingPopoverOpen(false);
 
     try {
-      const data = await searchPassages(searchTerm.trim(), 20, 0, mode);
+      const data = await searchPassages(searchTerm.trim(), 20, 0);
       setResults(data.results);
       setTotalAvailable(data.total_available);
-    } catch {
-      // Fallback
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Search failed';
+      showToast(message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleRankingModeChange = (newMode: 'hybrid' | 'semantic' | 'lexical') => {
-    setSortBy(newMode);
-    if (activeQuery) {
-      executeSearch(activeQuery, newMode);
-    }
-  };
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    executeSearch(queryInput, sortBy);
+    executeSearch(queryInput);
   };
 
   const handleClear = () => {
@@ -393,72 +363,9 @@ export function App() {
                 </div>
               </form>
 
-              {/* Interactive Ranking Mode Selector on Homepage */}
-              <div className="mt-5 flex flex-wrap items-center justify-center gap-3 z-20 select-none">
-                <span className="text-xs text-warmgrey font-semibold uppercase tracking-wider">Rank by:</span>
-                <div className="inline-flex items-center p-1 rounded-xl bg-surface-canvas/90 backdrop-blur-sm border border-[#E3D2BE] shadow-xs text-xs gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setSortBy('hybrid')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      sortBy === 'hybrid'
-                        ? 'bg-[#9E2F2B] text-white shadow-xs font-semibold'
-                        : 'text-warmgrey hover:text-cocoa hover:bg-sand-200/60'
-                    }`}
-                    title="Rank by Reciprocal Rank Fusion combining vector semantics and keyword search"
-                  >
-                    <span
-                      className={`w-2 h-2 rounded-full ${
-                        sortBy === 'hybrid' ? 'bg-white' : 'bg-brick'
-                      }`}
-                    />
-                    <span>Hybrid</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSortBy('semantic')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      sortBy === 'semantic'
-                        ? 'bg-[#9E2F2B] text-white shadow-xs font-semibold'
-                        : 'text-warmgrey hover:text-cocoa hover:bg-sand-200/60'
-                    }`}
-                    title="Rank by dense vector embedding similarity (FAISS)"
-                  >
-                    <span
-                      className={`w-2 h-2 rounded-full ${
-                        sortBy === 'semantic' ? 'bg-white' : 'bg-sand-400'
-                      }`}
-                    />
-                    <span>Semantic</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSortBy('lexical')}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      sortBy === 'lexical'
-                        ? 'bg-[#9E2F2B] text-white shadow-xs font-semibold'
-                        : 'text-warmgrey hover:text-cocoa hover:bg-sand-200/60'
-                    }`}
-                    title="Rank by sparse keyword term frequency (BM25)"
-                  >
-                    <span
-                      className={`w-2 h-2 rounded-full ${
-                        sortBy === 'lexical' ? 'bg-white' : 'bg-sand-400'
-                      }`}
-                    />
-                    <span>Lexical</span>
-                  </button>
-                </div>
-
-                <RankingPopover
-                  isOpen={rankingPopoverOpen}
-                  onClose={() => setRankingPopoverOpen(false)}
-                  onToggle={() => setRankingPopoverOpen(!rankingPopoverOpen)}
-                  currentMode={sortBy}
-                  onSelectMode={(mode) => setSortBy(mode)}
-                />
+              <div className="mt-5 flex items-center justify-center gap-2 text-xs text-warmgrey select-none">
+                <span className="w-2 h-2 rounded-full bg-brick" aria-hidden="true" />
+                <span>Unified hybrid ranking · meaning and exact terms together</span>
               </div>
 
               {/* Indexed statistics in Hero View (Folder & File counts) */}
@@ -581,65 +488,7 @@ export function App() {
       {/* MAIN UNIFIED SEARCH RESULTS REGION */}
       {viewState === 'results' && (
         <main className="view-transition flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 pb-20 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          {/* Centered Ranking Modes Selector fitted in middle between Search Bar and Results */}
           <div className="flex flex-col items-center justify-center gap-2 mb-8">
-            <div className="inline-flex items-center p-1 rounded-2xl bg-surface-canvas/90 backdrop-blur-md border border-[#E3D2BE] shadow-[0_2px_12px_-2px_rgba(41,37,34,0.06)] text-xs gap-1.5">
-              <span className="text-xs text-warmgrey font-semibold uppercase tracking-wider pl-2.5 pr-1">Rank by:</span>
-              <button
-                type="button"
-                onClick={() => handleRankingModeChange('hybrid')}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                  sortBy === 'hybrid'
-                    ? 'bg-[#9E2F2B] text-white shadow-xs font-semibold'
-                    : 'text-warmgrey hover:text-cocoa hover:bg-sand-200/70'
-                }`}
-                title="Rank by Reciprocal Rank Fusion combining semantics and keyword search"
-              >
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    sortBy === 'hybrid' ? 'bg-white' : 'bg-brick'
-                  }`}
-                />
-                <span>Hybrid</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleRankingModeChange('semantic')}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                  sortBy === 'semantic'
-                    ? 'bg-[#9E2F2B] text-white shadow-xs font-semibold'
-                    : 'text-warmgrey hover:text-cocoa hover:bg-sand-200/70'
-                }`}
-                title="Rank by dense vector embedding similarity (FAISS)"
-              >
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    sortBy === 'semantic' ? 'bg-white' : 'bg-sand-400'
-                  }`}
-                />
-                <span>Semantic</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleRankingModeChange('lexical')}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                  sortBy === 'lexical'
-                    ? 'bg-[#9E2F2B] text-white shadow-xs font-semibold'
-                    : 'text-warmgrey hover:text-cocoa hover:bg-sand-200/70'
-                }`}
-                title="Rank by sparse keyword term frequency (BM25)"
-              >
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    sortBy === 'lexical' ? 'bg-white' : 'bg-sand-400'
-                  }`}
-                />
-                <span>Lexical</span>
-              </button>
-            </div>
-
             <div className="text-xs text-warmgrey font-mono flex items-center gap-2">
               <span>{totalAvailable} matching {totalAvailable === 1 ? 'passage' : 'passages'}</span>
               <span>·</span>
@@ -678,13 +527,12 @@ export function App() {
           )}
 
           {/* UNIFIED RESULTS LIST */}
-          {!isLoading && sortedResults.length > 0 && (
+          {!isLoading && results.length > 0 && (
             <section aria-label="Search passages" className="space-y-2.5 mb-10">
-              {sortedResults.map((result) => (
+              {results.map((result) => (
                 <SearchResultCard
                   key={result.chunk_id}
                   result={result}
-                  rankingMode={sortBy}
                   onInspect={handleInspectPassage}
                   onOpenFolder={handleOpenFolder}
                 />

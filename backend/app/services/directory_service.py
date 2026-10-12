@@ -185,7 +185,7 @@ class DirectoryService:
     @classmethod
     def register_directory(cls, raw_path: str) -> dict:
         """
-        Registers a new approved directory root and performs initial file scan.
+        Registers a new approved directory root and queues its initial sync.
         """
         now_iso = datetime.now(timezone.utc).isoformat()
         with get_db() as conn:
@@ -204,42 +204,25 @@ class DirectoryService:
                 (directory_id, canonical_path_str, display_name, now_iso),
             )
 
-            # Discover and index files
-            file_count = cls.scan_files(target_path, directory_id, conn)
-
-            # Update directory status
-            cursor.execute(
-                """
-                UPDATE directories
-                SET last_sync_completed_at = ?, sync_status = 'IDLE'
-                WHERE directory_id = ?
-                """,
-                (now_iso, directory_id),
-            )
-
-            # Record initial index job
-            initial_job_id = "job_" + uuid.uuid4().hex[:8]
-            cursor.execute(
-                """
-                INSERT INTO index_jobs (
-                    job_id, directory_id, job_type, status, stage,
-                    files_discovered, files_processed, files_failed,
-                    passages_created, started_at, updated_at, completed_at
-                ) VALUES (?, ?, 'INITIAL_INDEX', 'COMPLETED', 'SCANNING', ?, ?, 0, 0, ?, ?, ?)
-                """,
-                (initial_job_id, directory_id, file_count, file_count, now_iso, now_iso, now_iso),
-            )
+        # Queue only after the registration transaction commits, so the worker
+        # always observes the new directory row.
+        from app.sync.worker import get_sync_worker
+        initial_job_id = get_sync_worker().start_sync(
+            directory_id,
+            job_type="INITIAL_INDEX",
+            background=True,
+        )
 
         return {
             "directory": {
                 "directory_id": directory_id,
                 "canonical_path": canonical_path_str,
                 "display_name": display_name,
-                "file_count": file_count,
+                "file_count": 0,
                 "passage_count": 0,
-                "sync_status": "IDLE",
+                "sync_status": "SYNCING",
                 "added_at": now_iso,
-                "last_sync_completed_at": now_iso,
+                "last_sync_completed_at": None,
                 "last_error": None,
             },
             "initial_job_id": initial_job_id,
@@ -345,6 +328,8 @@ class DirectoryService:
             if not cursor.fetchone():
                 raise DirectoryNotFoundError(f"Directory ID '{directory_id}' not found.")
 
+        from app.sync.worker import get_sync_worker
+        get_sync_worker().wait_for_directory(directory_id)
         from app.services.pruning_service import PruningService
         PruningService.prune_directory(directory_id)
         return True

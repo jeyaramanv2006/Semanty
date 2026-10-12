@@ -30,7 +30,7 @@ All requirements and design elements in FindIT adhere to the following strict ce
 ### 2.2 Text Extraction & Location Tracking
 - `REQ-EXT-001` [**Confirmed Requirement**]: The system must extract text from supported file types: PDF, Markdown (`.md`), Plain Text (`.txt`), Word (`.docx`), PowerPoint (`.pptx`), source code (`.py`, `.ts`, `.js`, etc.), and config files (`.json`, `.yaml`, `.toml`).
 - `REQ-EXT-002` [**Confirmed Requirement**]: Text extraction must capture and record granular source-location metadata during parsing rather than attempting retroactive reconstruction:
-  - **PDF**: Page number (`Page X of Y`), start/end page if a chunk crosses boundaries.
+  - **PDF**: Page number (`Page X`), or an explicit range (`Pages X–Y`) if a chunk crosses boundaries.
   - **PPTX**: Slide number (`Slide N`).
   - **TXT / Code / Config**: Precise 1-indexed line ranges (`Lines X–Y`).
   - **Markdown**: Heading path (`# System > ## Indexing`) and line ranges.
@@ -66,6 +66,13 @@ All requirements and design elements in FindIT adhere to the following strict ce
 - `REQ-JOB-001` [**Confirmed Requirement**]: The system must provide real-time job progress representing actual pipeline stages (`VALIDATING`, `SCANNING`, `EXTRACTING`, `EMBEDDING`, `INDEXING`, `COMPLETED`, `FAILED`).
 - `REQ-JOB-002` [**Confirmed Requirement**]: Progress displays must indicate real counts (e.g., `Processed 42 / 118 files`), never fake simulated percentages.
 - `REQ-JOB-003` [**Confirmed Requirement**]: Per-file extraction errors or unsupported formats must be logged and surfaced as job warnings without crashing the overall sync operation.
+
+### 2.7 Primary Terminal Interface
+- `REQ-TUI-001` [**Confirmed Requirement**]: FindIT must provide a full-featured Textual TUI as the primary interactive client over the local REST API.
+- `REQ-TUI-002` [**Confirmed Requirement**]: The TUI must support search, pagination, passage inspection, native file actions, directory management, sync monitoring, health visibility, and recoverable errors.
+- `REQ-TUI-003` [**Confirmed Requirement**]: The TUI must provide explicit keyboard focus, discoverable help, selection persistence, and usable narrow-terminal fallbacks.
+- `REQ-TUI-004` [**Confirmed Requirement**]: The TUI may start the backend when unavailable, but may terminate only a backend process that it started itself.
+- `REQ-TUI-005` [**Confirmed Requirement**]: Normal user interfaces must display the backend's unified hybrid ordering and must not expose semantic/lexical ranking toggles or client-side re-sorting.
 
 ---
 
@@ -112,3 +119,7 @@ All requirements and design elements in FindIT adhere to the following strict ce
 - Continuous background filesystem watchers (`fswatch` / `watchdog`).
 - Generative AI answer synthesis or summarization.
 - Cloud document backup and synchronization.
+
+### 5.3 Retired Architecture
+- The independent `cli/` indexing and retrieval engine, its separate storage directory, and its divergent ranking behavior are retired after the TUI reaches feature parity.
+- Native distributable packaging remains deferred; the target is a robust local runtime.

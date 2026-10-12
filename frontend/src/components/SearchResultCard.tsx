@@ -1,53 +1,15 @@
 import React from 'react';
 import type { SearchResult } from '../types';
+import { formatLocationLabel } from '../utils/location';
 
 interface SearchResultCardProps {
   result: SearchResult;
-  rankingMode?: 'hybrid' | 'semantic' | 'lexical';
   onInspect: (result: SearchResult) => void;
   onOpenFolder: (result: SearchResult) => void;
 }
 
-export function formatLocationLabel(label: string, fileType: string = ''): string {
-  if (!label) return '';
-  const trimmed = label.trim();
-
-  // For docx / doc: strictly page number, never section or extra text
-  if (fileType.toLowerCase().startsWith('doc')) {
-    const pageMatch = trimmed.match(/Page\s+(\d+(?:\s+of\s+\d+)?)/i);
-    if (pageMatch) {
-      return `Page ${pageMatch[1]}`;
-    }
-    const numMatch = trimmed.match(/\b\d+\b/);
-    return numMatch ? `Page ${numMatch[0]}` : trimmed.replace(/^Section:\s*/i, '');
-  }
-
-  // For pptx / ppt: strictly slide number
-  if (fileType.toLowerCase().startsWith('ppt')) {
-    const slideMatch = trimmed.match(/Slide\s+(\d+)/i);
-    if (slideMatch) {
-      return `Slide ${slideMatch[1]}`;
-    }
-    return trimmed.split('·')[0].trim();
-  }
-
-  // For pdf: strictly page number, strip any extra topic after '·'
-  if (fileType.toLowerCase() === 'pdf') {
-    const pageMatch = trimmed.match(/Page\s+(\d+(?:\s+of\s+\d+)?)/i);
-    if (pageMatch) {
-      return `Page ${pageMatch[1]}`;
-    }
-    return trimmed.split('·')[0].trim();
-  }
-
-  // For other file types, strip any extra text after '·' and strip 'Section:'
-  const base = trimmed.split('·')[0].trim();
-  return base.replace(/^Section:\s*/i, '');
-}
-
 export const SearchResultCard: React.FC<SearchResultCardProps> = ({
   result,
-  rankingMode = 'hybrid',
   onInspect,
   onOpenFolder,
 }) => {
@@ -155,96 +117,15 @@ export const SearchResultCard: React.FC<SearchResultCardProps> = ({
         className="flex items-center gap-2 flex-shrink-0"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Ranking Badges: Preserves Hybrid, Semantic, and Lexical ranks from before, highlighting whichever is currently selected */}
+        {/* Only the authoritative backend rank is shown to users. */}
         <div className="hidden sm:flex items-center gap-1.5 mr-2.5 text-xs font-mono">
-          {rankingMode === 'semantic' ? (
-            <>
-              {/* Primary: Semantic */}
-              <span
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-brick-light text-brick font-semibold border border-brick/20 shadow-xs"
-                title="Semantic Rank (FAISS dense vector similarity)"
-              >
-                <span className="text-[10px] uppercase font-sans font-medium text-brick/80">Semantic</span>
-                #{result.semantic_rank != null ? result.semantic_rank : '—'}
-              </span>
-
-              {/* Secondary: Hybrid */}
-              <span
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-sand-200/70 text-cocoa text-[11px] font-medium border border-sand-300/40"
-                title="Hybrid Rank (Reciprocal Rank Fusion)"
-              >
-                <span className="text-[10px] uppercase font-sans text-warmgrey">Hybrid</span>
-                #{result.hybrid_rank}
-              </span>
-
-              {/* Secondary: Lexical */}
-              <span
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-sand-200/70 text-cocoa text-[11px] font-medium border border-sand-300/40"
-                title="Lexical Rank (BM25 sparse keyword match)"
-              >
-                <span className="text-[10px] uppercase font-sans text-warmgrey">Lex</span>
-                #{result.lexical_rank != null ? result.lexical_rank : '—'}
-              </span>
-            </>
-          ) : rankingMode === 'lexical' ? (
-            <>
-              {/* Primary: Lexical */}
-              <span
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-brick-light text-brick font-semibold border border-brick/20 shadow-xs"
-                title="Lexical Rank (BM25 sparse keyword match)"
-              >
-                <span className="text-[10px] uppercase font-sans font-medium text-brick/80">Lexical</span>
-                #{result.lexical_rank != null ? result.lexical_rank : '—'}
-              </span>
-
-              {/* Secondary: Hybrid */}
-              <span
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-sand-200/70 text-cocoa text-[11px] font-medium border border-sand-300/40"
-                title="Hybrid Rank (Reciprocal Rank Fusion)"
-              >
-                <span className="text-[10px] uppercase font-sans text-warmgrey">Hybrid</span>
-                #{result.hybrid_rank}
-              </span>
-
-              {/* Secondary: Semantic */}
-              <span
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-sand-200/70 text-cocoa text-[11px] font-medium border border-sand-300/40"
-                title="Semantic Rank (FAISS dense vector similarity)"
-              >
-                <span className="text-[10px] uppercase font-sans text-warmgrey">Sem</span>
-                #{result.semantic_rank != null ? result.semantic_rank : '—'}
-              </span>
-            </>
-          ) : (
-            <>
-              {/* Primary: Hybrid (Default) */}
-              <span
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-brick-light text-brick font-semibold border border-brick/20 shadow-xs"
-                title="Hybrid Rank (Reciprocal Rank Fusion)"
-              >
-                <span className="text-[10px] uppercase font-sans font-medium text-brick/80">Hybrid</span>
-                #{result.hybrid_rank}
-              </span>
-
-              {/* Secondary: Semantic */}
-              <span
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-sand-200/70 text-cocoa text-[11px] font-medium border border-sand-300/40"
-                title="Semantic Rank (FAISS dense vector similarity)"
-              >
-                <span className="text-[10px] uppercase font-sans text-warmgrey">Sem</span>
-                #{result.semantic_rank != null ? result.semantic_rank : '—'}
-              </span>
-
-              {/* Secondary: Lexical */}
-              <span
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-sand-200/70 text-cocoa text-[11px] font-medium border border-sand-300/40"
-                title="Lexical Rank (BM25 sparse keyword match)"
-              >
-                <span className="text-[10px] uppercase font-sans text-warmgrey">Lex</span>
-                #{result.lexical_rank != null ? result.lexical_rank : '—'}
-              </span>
-            </>
-          )}
+          <span
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-brick-light text-brick font-semibold border border-brick/20 shadow-xs"
+            title="Backend hybrid rank (Reciprocal Rank Fusion)"
+          >
+            <span className="text-[10px] uppercase font-sans font-medium text-brick/80">Rank</span>
+            #{result.hybrid_rank}
+          </span>
         </div>
 
         <button

@@ -1,10 +1,21 @@
 import tempfile
+import time
 from pathlib import Path
 from fastapi.testclient import TestClient
 from app.main import app
 from app.db.database import get_db, init_db
 
 client = TestClient(app)
+
+
+def wait_for_job(job_id: str, timeout: float = 20.0):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        response = client.get(f"/api/jobs/{job_id}")
+        if response.status_code < 400 and response.json()["status"] in {"COMPLETED", "FAILED"}:
+            return response.json()
+        time.sleep(0.05)
+    raise AssertionError(f"Job {job_id} did not finish")
 
 
 def test_register_and_list_directory():
@@ -23,8 +34,10 @@ def test_register_and_list_directory():
         assert "directory" in data
         assert "initial_job_id" in data
         directory = data["directory"]
-        assert directory["file_count"] == 3
+        assert directory["file_count"] == 0
         dir_id = directory["directory_id"]
+        job = wait_for_job(data["initial_job_id"])
+        assert job["status"] == "COMPLETED"
 
         # List directories
         list_resp = client.get("/api/directories")
@@ -69,6 +82,7 @@ def test_overlapping_directories():
         dir_id = resp1.json()["directory"]["directory_id"]
 
         try:
+            wait_for_job(resp1.json()["initial_job_id"])
             # Attempt to register child (should conflict)
             resp2 = client.post("/api/directories", json={"canonical_path": str(child_path)})
             assert resp2.status_code == 409
@@ -90,6 +104,7 @@ def test_delete_directory_leaves_files_intact():
         resp = client.post("/api/directories", json={"canonical_path": str(dir_path)})
         assert resp.status_code == 201
         dir_id = resp.json()["directory"]["directory_id"]
+        wait_for_job(resp.json()["initial_job_id"])
 
         # Delete directory registration
         del_resp = client.delete(f"/api/directories/{dir_id}")
@@ -114,16 +129,17 @@ def test_directory_sync():
         resp = client.post("/api/directories", json={"canonical_path": str(dir_path)})
         assert resp.status_code == 201
         dir_id = resp.json()["directory"]["directory_id"]
-        assert resp.json()["directory"]["file_count"] == 1
+        wait_for_job(resp.json()["initial_job_id"])
+        assert resp.json()["directory"]["file_count"] == 0
 
         try:
             # Add second file
             (dir_path / "file2.md").write_text("# Second file", encoding="utf-8")
 
             # Trigger sync
-            sync_resp = client.post(f"/api/directories/{dir_id}/sync")
-            assert sync_resp.status_code == 200
-            assert sync_resp.json()["files_discovered"] == 2
+            sync_resp = client.post(f"/api/sync/{dir_id}")
+            assert sync_resp.status_code == 202
+            assert wait_for_job(sync_resp.json()["job_id"])["files_discovered"] == 2
 
             # Check directory list
             list_resp = client.get("/api/directories")
@@ -145,7 +161,7 @@ def test_delete_and_sync_nonexistent_directory():
     assert del_resp.status_code == 404
     assert del_resp.json()["detail"]["error"]["code"] == "DIRECTORY_NOT_FOUND"
 
-    sync_resp = client.post("/api/directories/dir_nonexistent123/sync")
+    sync_resp = client.post("/api/sync/dir_nonexistent123")
     assert sync_resp.status_code == 404
     assert sync_resp.json()["detail"]["error"]["code"] == "DIRECTORY_NOT_FOUND"
 
@@ -163,11 +179,11 @@ def test_sync_all_directories():
         id2 = r2.json()["directory"]["directory_id"]
 
         try:
-            sync_all_resp = client.post("/api/directories/sync-all")
-            assert sync_all_resp.status_code == 200
+            sync_all_resp = client.post("/api/sync")
+            assert sync_all_resp.status_code == 202
             data = sync_all_resp.json()
-            assert data["status"] == "COMPLETED"
-            assert data["synced_directories"] >= 2
+            assert data["status"] == "QUEUED"
+            assert len(data["jobs"]) >= 2
         finally:
             client.delete(f"/api/directories/{id1}")
             client.delete(f"/api/directories/{id2}")

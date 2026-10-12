@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { PassageDetail } from '../types';
-import { formatLocationLabel } from './SearchResultCard';
+import { formatLocationLabel } from '../utils/location';
 
 interface PassageInspectorModalProps {
   passage: PassageDetail | null;
@@ -120,23 +120,6 @@ export const PassageInspectorModal: React.FC<PassageInspectorModalProps> = ({
               <span className="font-medium text-cocoa">
                 {formatLocationLabel(passage.location_label, passage.file_type)}
               </span>
-            </div>
-            <div className="flex items-center gap-1.5 font-mono text-[11px]">
-              {passage.hybrid_rank && (
-                <span className="px-2 py-0.5 rounded bg-brick-light text-brick font-medium border border-brick/20">
-                  Hybrid #{passage.hybrid_rank}
-                </span>
-              )}
-              {passage.semantic_rank && (
-                <span className="px-1.5 py-0.5 rounded bg-sand-100 text-warmgrey border border-sand-300/40">
-                  Sem #{passage.semantic_rank}
-                </span>
-              )}
-              {passage.lexical_rank && (
-                <span className="px-1.5 py-0.5 rounded bg-sand-100 text-warmgrey border border-sand-300/40">
-                  Lex #{passage.lexical_rank}
-                </span>
-              )}
             </div>
           </div>
 

@@ -31,6 +31,8 @@ All 4xx and 5xx responses return a consistent error envelope:
 
 ## 2. Directory Management Endpoints
 
+Directory registration and synchronization are asynchronous. `POST /api/directories` records the approved root and queues an initial indexing job; clients must use the job endpoints for progress rather than waiting for extraction or embedding in the request.
+
 ### 2.1 List Registered Directories
 - **Endpoint**: `GET /api/directories`
 - **Description**: Returns all user-approved directories registered with FindIT.
@@ -117,7 +119,7 @@ All 4xx and 5xx responses return a consistent error envelope:
 ```
 
 ### 2.5 Trigger Directory Sync
-- **Endpoint**: `POST /api/directories/{directory_id}/sync`
+- **Endpoint**: `POST /api/sync/{directory_id}`
 - **Description**: Starts an incremental synchronization job for a single registered directory.
 - **Response**: `202 Accepted`
 ```json
@@ -128,8 +130,8 @@ All 4xx and 5xx responses return a consistent error envelope:
 }
 ```
 
-### 2.5 Trigger Sync All
-- **Endpoint**: `POST /api/directories/sync-all`
+### 2.6 Trigger Sync All
+- **Endpoint**: `POST /api/sync`
 - **Description**: Enqueues incremental synchronization jobs across all registered directories.
 - **Response**: `202 Accepted`
 ```json
@@ -143,6 +145,8 @@ All 4xx and 5xx responses return a consistent error envelope:
   ]
 }
 ```
+
+The supported sync routes are the asynchronous `/api/sync` and `/api/sync/{directory_id}` endpoints. Synchronous directory sync routes are not part of the public contract.
 
 ---
 
@@ -182,6 +186,7 @@ All 4xx and 5xx responses return a consistent error envelope:
 ### 4.1 Hybrid Search
 - **Endpoint**: `POST /api/search`
 - **Description**: Executes hybrid retrieval (FAISS semantic + BM25 lexical) combined via Reciprocal Rank Fusion ($k=60$).
+- **User-facing ranking policy**: The standard client contract always returns the backend's unified hybrid RRF ordering. Semantic and lexical ranks may be retained as developer diagnostics only; clients must not re-sort the returned list.
 - **Request Body**:
 ```json
 {

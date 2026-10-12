@@ -105,12 +105,12 @@ def build_location_label(row: Dict[str, Any]) -> str:
 
     if page_number is not None:
         if end_page is not None and end_page != page_number:
-            return f"Page {page_number} of {end_page}"
+            return f"Pages {page_number}–{end_page}"
         return f"Page {page_number}"
 
     if start_page is not None:
         if end_page is not None and end_page != start_page:
-            return f"Page {start_page} of {end_page}"
+            return f"Pages {start_page}–{end_page}"
         return f"Page {start_page}"
 
     if start_line is not None:
@@ -228,12 +228,11 @@ class SearchService:
         limit: int = 10,
         offset: int = 0,
         pool_size: int = DEFAULT_CANDIDATE_POOL,
-        ranking_mode: str = "hybrid",
     ) -> SearchResponse:
         """
         Executes end-to-end hybrid retrieval for a search query.
-        Supports ranking_mode: 'hybrid' (default RRF), 'semantic' (FAISS dense), or 'lexical' (BM25 sparse).
-        All returned candidates retain hybrid_rank, semantic_rank, and lexical_rank.
+        Always returns the backend's unified RRF ordering. Retriever ranks remain
+        available internally for diagnostics and tests.
         """
         stripped_query = query.strip()
         if not stripped_query:
@@ -263,31 +262,8 @@ class SearchService:
         if total_available == 0:
             return SearchResponse(query=query, total_available=0, results=[], next_offset=None)
 
-        # 4. Order candidates according to requested ranking_mode
-        mode = (ranking_mode or "hybrid").lower().strip()
-        if mode == "semantic":
-            # Rank primarily by dense semantic rank (1, 2, ...), then lexical matches
-            ranked_candidates = sorted(
-                fused_candidates,
-                key=lambda x: (
-                    0 if x["semantic_rank"] is not None else 1,
-                    x["semantic_rank"] if x["semantic_rank"] is not None else 999999,
-                    x["hybrid_rank"],
-                ),
-            )
-        elif mode == "lexical":
-            # Rank primarily by sparse lexical rank (1, 2, ...), then semantic matches
-            ranked_candidates = sorted(
-                fused_candidates,
-                key=lambda x: (
-                    0 if x["lexical_rank"] is not None else 1,
-                    x["lexical_rank"] if x["lexical_rank"] is not None else 999999,
-                    x["hybrid_rank"],
-                ),
-            )
-        else:
-            # Default: hybrid reciprocal rank fusion order
-            ranked_candidates = fused_candidates
+        # 4. Preserve fusion order. Clients must not re-rank by retriever.
+        ranked_candidates = fused_candidates
 
         # 5. Paginate candidates
         paginated_candidates = ranked_candidates[offset : offset + limit]

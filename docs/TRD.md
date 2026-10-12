@@ -7,6 +7,10 @@
 
 ## 1. Technical Architecture & Component Stack
 
+- **Primary interactive client**: Python Textual TUI over the documented loopback REST API.
+- **Supported secondary client**: React + TypeScript browser client using the same API contracts.
+- **Authoritative engine boundary**: FastAPI owns SQLite, FAISS, BM25, indexing, synchronization, and security; clients do not open index files directly.
+
 | Subsystem | Selected Technology | Technical Rationale & Role |
 | :--- | :--- | :--- |
 | **Frontend Framework** | React 18+ & TypeScript | Componentized UI, strict type-checking, responsive state machine. |
@@ -27,7 +31,7 @@ Text extraction must capture structural location coordinates during file parsing
 
 | File Format | Primary Parser | Extracted Metadata Fields | Formatting in UI | Notes & Constraints |
 | :--- | :--- | :--- | :--- | :--- |
-| **PDF** | `pypdf` / `pymupdf` (fitz) | `page_number`, `page_count`, `start_page`, `end_page` | `Page 18 of 48` | Preserve page boundaries during chunking. If chunk spans pages, record both. |
+| **PDF** | `pypdf` / `pymupdf` (fitz) | `page_number`, `page_count`, `start_page`, `end_page` | `Page 18` / `Pages 18–20` | Preserve page boundaries during chunking. If chunk spans pages, record both. |
 | **PPTX** | `python-pptx` | `slide_number`, `slide_title` | `Slide 7` | Segment at slide boundaries; slide title prefixes passage text. |
 | **Markdown** | `markdown-it-py` / Custom AST | `heading_path`, `start_line`, `end_line` | `Lines 45–80` / `Section: Setup` | Capture heading hierarchy (e.g. `Architecture > Storage`) for context. |
 | **Plain Text** | Native UTF-8 Reader | `start_line`, `end_line` | `Lines 112–138` | Strict 1-indexed line counts matching source file. |

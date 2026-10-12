@@ -294,24 +294,18 @@ class TestAPIEndpoints:
         assert "results" in data_post
         assert data_post["query"] == "architecture"
 
-        # POST /api/search with ranking_mode="semantic"
-        resp_semantic = client.post("/api/search", json={"query": "architecture", "limit": 10, "ranking_mode": "semantic"})
-        assert resp_semantic.status_code == 200
-        data_sem = resp_semantic.json()
-        assert "results" in data_sem
+        # Technical ranking modes are no longer part of the user-facing contract.
+        resp_mode = client.post("/api/search", json={"query": "architecture", "limit": 10, "ranking_mode": "semantic"})
+        assert resp_mode.status_code == 422
 
-        # POST /api/search with ranking_mode="lexical"
-        resp_lexical = client.post("/api/search", json={"query": "architecture", "limit": 10, "ranking_mode": "lexical"})
-        assert resp_lexical.status_code == 200
-        data_lex = resp_lexical.json()
-        assert "results" in data_lex
-
-        # GET /api/search with ranking_mode query param
-        resp_get = client.get("/api/search?q=architecture&limit=5&ranking_mode=semantic")
+        # GET /api/search remains a hybrid-only query-string endpoint.
+        resp_get = client.get("/api/search?q=architecture&limit=5")
         assert resp_get.status_code == 200
         data_get = resp_get.json()
         assert "results" in data_get
         assert len(data_get["results"]) <= 5
+        resp_get_mode = client.get("/api/search?q=architecture&ranking_mode=lexical")
+        assert resp_get_mode.status_code == 422
 
     def test_passage_detail_api(self, mock_search_env, monkeypatch):
         """Tests GET /api/passages/{chunk_id}."""

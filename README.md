@@ -11,7 +11,9 @@
 
 ---
 
-**FindIT** is a local-first, privacy-preserving desktop search engine designed to run entirely on your local machine.
+**FindIT** is a local-first, privacy-preserving document search engine designed to run entirely on your local machine. Its primary interactive client is a keyboard-first Textual TUI; a supported React client remains available for browser-based local use.
+
+The FastAPI backend is the single source of truth for indexing, SQLite metadata, FAISS vectors, BM25 retrieval, synchronization, and security boundaries. All clients use its local REST API and display one unified hybrid-ranked result list.
 
 ### The Problem
 Knowledge workers, researchers, and developers accumulate thousands of local files—research PDFs, presentation slide decks, technical specifications, Markdown notes, source code, and configuration files. Traditional desktop search tools (such as Windows Search, macOS Spotlight, or command-line `grep`) fail because they demand exact filename recall or verbatim keyword matches.
@@ -27,7 +29,7 @@ FindIT bridges human memory with your local storage. You select the local folder
 
 ### Core Promise
 - **Search by meaning**: Find files using natural descriptions and conceptual recall.
-- **Exact source coordinates**: Every result pinpoints the exact `Page X of Y`, `Slide N`, `Lines X–Y`, or `Section Heading`.
+- **Exact source coordinates**: Every result pinpoints the exact `Page X`, `Pages X–Y`, `Slide N`, `Lines X–Y`, or `Section Heading`.
 - **Zero hallucinations**: FindIT returns the actual extracted passage, never generative AI summaries.
 - **Private & Local**: Embeddings, indices, and database files remain strictly on your machine (`127.0.0.1`). Zero cloud APIs, zero tracking, and zero telemetry.
 - **Strictly Non-Destructive**: FindIT is an index, not a file manager. Your original files are never modified, moved, or deleted.
@@ -57,7 +59,7 @@ FindIT bridges human memory with your local storage. You select the local folder
 
 ### 1. Hybrid Search & Ranked Passage Results
 ![FindIT Search Results](./docs/assets/findit-results.png)
-*Results view featuring persistent morphing header, active ranking strategy toggles (`Hybrid`, `Semantic`, `Lexical`), passage cards with precise physical coordinates, and native OS folder reveal.*
+*Results view featuring a persistent header, authoritative hybrid-ranked passage cards with precise physical coordinates, and native OS folder reveal.*
 
 ### 2. Search Canvas & Hero Interface
 ![FindIT Search Homepage](./docs/assets/findit-home.png)
@@ -71,6 +73,8 @@ FindIT bridges human memory with your local storage. You select the local folder
 
 ## Features
 
+- **Primary Textual TUI**: Search, inspect passages, manage approved directories, monitor real indexing jobs, open source files, and recover from errors without leaving the terminal.
+
 - **Hybrid Semantic + Lexical Retrieval**:
   - **Dense Vector Search**: Powered by `sentence-transformers/all-MiniLM-L6-v2` and `FAISS` (`IndexFlatIP`) for concept-based and associative recall.
   - **Lexical Keyword Search**: Powered by `BM25` for exact token matches, snake_case symbols, variable names, and configuration keys.
@@ -79,7 +83,7 @@ FindIT bridges human memory with your local storage. You select the local folder
 - **Granular Passage-Level Provenance**:
   - Highlights the exact portion of the document where your concept lives.
   - Formats physical location coordinates:
-    - **PDF**: `Page X of Y` (e.g., `Page 18 of 48`)
+    - **PDF**: `Page X` or `Pages X–Y` (e.g., `Pages 18–20`)
     - **PowerPoint**: `Slide N` (e.g., `Slide 7`)
     - **Markdown / Plain Text / Code**: `Lines X–Y` (e.g., `Lines 112–138`)
     - **Word Documents (DOCX)**: `Section: <Heading>`
@@ -146,7 +150,7 @@ FindIT is architected as a modular, local-first client-service system designed f
 
 ### Option A: One-Click Launch (Windows)
 
-FindIT includes automated batch runners that detect missing environments, install dependencies, and launch both services:
+FindIT includes automated batch runners that detect missing environments, install dependencies, and launch the primary terminal client:
 
 1. Clone or download the repository:
    ```bash
@@ -158,7 +162,7 @@ FindIT includes automated batch runners that detect missing environments, instal
    ```cmd
    run.bat
    ```
-   *On first run, `run.bat` automatically invokes `scripts\setup.bat`, sets up the Python virtual environment, installs backend packages (auto-detecting CUDA), runs `npm install` for the frontend, launches both services, and automatically opens `http://localhost:5173` in your default browser.*
+   *On first run, `run.bat` automatically invokes `scripts\setup.bat`, sets up the Python virtual environment, installs backend and TUI packages (auto-detecting CUDA), installs frontend dependencies, and launches the Textual client. The TUI starts the backend only when it is not already running.*
 
 ---
 
@@ -184,11 +188,12 @@ pip install -r requirements.txt
 # (Optional) Install PyTorch with CUDA acceleration if using an NVIDIA GPU:
 # pip install torch torchvision --index-url https://download.pytorch.org/whl/cu124
 
-# Start the FastAPI backend server (default: http://127.0.0.1:8000)
-python run.py
+# Start the primary Textual client from the repository root
+cd ..
+python -m tui
 ```
 
-#### 2. Frontend Setup
+#### 2. Optional Browser Client
 
 In a new terminal:
 
@@ -208,22 +213,16 @@ The frontend will start at **`http://localhost:5173`**.
 
 ## Usage and Examples
 
-### Typical Workflow
+### TUI Workflow
 
-1. **Open FindIT**: Navigate to `http://localhost:5173` in your web browser.
-2. **Register a Folder**:
-   - Click the **Folder Icon** in the top-right corner to open the **Indexed Directories** modal.
-   - Enter or select the absolute path of a local folder containing your notes, research papers, or project documents.
-   - Click **Add Directory**.
-3. **Monitor Indexing**:
-   - The status updates in real-time (`SCANNING` &rarr; `EXTRACTING` &rarr; `EMBEDDING` &rarr; `INDEXING` &rarr; `IDLE`).
-4. **Search by Remembered Context**:
-   - Return to the search bar and type what you remember (e.g., *"database connection pool timeout retry strategy"*).
-   - Press `Enter`.
-5. **Inspect & Reveal**:
-   - Browse the ranked passage cards displaying exact location coordinates (`Page 12 of 30` or `Lines 45-80`).
-   - Click on the card to open the **Passage Inspector Modal** and read the full context.
-   - Click **Open in folder** to jump straight to that file in your operating system's native file explorer.
+1. Run `run.bat` or `scripts\start-tui.bat`.
+2. Press `a` to select and register an approved folder; indexing runs in the background.
+3. Type a remembered concept and press `Enter` to search the unified hybrid index.
+4. Use arrow keys or `j`/`k` to select a passage; press `Enter` to inspect it.
+5. Press `o` to open the source document or `f` to reveal it in the native file manager.
+6. Press `s` to sync the selected source, `S` to sync all, `?` for help, and `q` to exit.
+
+The browser client remains available for development with `scripts\start-web.bat`.
 
 ---
 
@@ -270,7 +269,6 @@ FindIT/
 │   │   │   ├── PassageInspectorModal.tsx# In-app full passage viewer
 │   │   │   ├── SearchResultCard.tsx     # Result card with location badges
 │   │   │   ├── TerracottaCanvas.tsx     # Custom contour line background
-│   │   │   └── RankingPopover.tsx       # Diagnostics & score breakdown
 │   │   ├── services/          # API client communicating with backend
 │   │   ├── types/             # TypeScript data contracts and interfaces
 │   │   ├── App.tsx            # Main app shell & view state transition choreography
@@ -279,8 +277,15 @@ FindIT/
 │   └── vite.config.ts         # Vite build configuration
 ├── scripts/                   # Helper automation scripts
 │   ├── setup.bat              # Automated environment and dependencies installer
+│   ├── start-tui.bat          # Primary Textual client launcher
 │   ├── start-backend.bat      # Dedicated backend launcher
-│   └── start-frontend.bat     # Dedicated frontend launcher
+│   ├── start-frontend.bat     # Dedicated frontend launcher
+│   └── start-web.bat          # Browser development launcher
+├── tui/                       # Primary Textual terminal client
+│   ├── api.py                 # Local REST client
+│   ├── process.py             # Backend process ownership
+│   ├── app.py                 # Search workspace and interactions
+│   └── tests/                 # TUI state and layout tests
 ├── run.bat                    # Universal one-click application launcher
 ├── AGENTS.md                  # Development principles and workflow protocols
 └── README.md                  # Project documentation overview
@@ -319,6 +324,14 @@ npm run lint
 npm run build
 ```
 
+For the primary terminal client:
+
+```bash
+cd ..
+python -m pytest tui/tests -q
+python -m tui
+```
+
 ---
 
 ## Configuration
@@ -351,7 +364,7 @@ FindIT enforces a local defense-in-depth model:
 
 ## Project Status & Roadmap
 
-FindIT is currently at **`v0.1.0 MVP`** status with full local-first hybrid search capabilities.
+FindIT is currently at **`v0.1.0`** status with a unified backend, primary Textual TUI, supported React client, and full local-first hybrid search capabilities.
 
 ### Roadmap Milestones
 - [x] **v0.1.0 (Current)**: Local hybrid retrieval (FAISS + BM25 + RRF), format extractors (PDF, PPTX, DOCX, MD, Code, Config), continuous header transition UI, in-app passage inspector, and native folder revelation.

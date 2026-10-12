@@ -1,12 +1,16 @@
 # Project Roadmap & Implementation Milestones — FindIT
 
-> **Current Status**: `ALL MILESTONES 1 THROUGH 8 (BATCHES 1–7) FULLY COMPLETED` | `READY FOR V0.1.0 RELEASE`  
-> **Frontend Design Status**: `COMPLETED & FULLY INTEGRATED`  
-> **Backend & Integration Status**: `ALL 19 PHASES IMPLEMENTED & FULL TEST SUITE VERIFIED (64/64 TESTS PASSING)`  
+> **Current Status**: `UNIFICATION COMPLETE` | FastAPI is authoritative, the Textual TUI is primary, React remains supported, and the duplicate CLI engine is retired.
+> **Frontend Design Status**: `Textual TUI primary; React supported at core parity`
+> **Backend & Integration Status**: `Unified backend contracts verified; release smoke checks documented below`
+
+Release verification completed for the backend and primary TUI: 30 core backend tests, 8 end-to-end tests, and 2 Textual state/layout tests pass in `backend/.venv`. Frontend verification remains recorded from the prior checkpoint; no frontend files were changed in this follow-up.
 
 ---
 
 ## 1. Roadmap Overview & Phasing
+
+The current modernization is delivered in five user-commit checkpoints: documentation/contracts, backend consolidation, Textual TUI, browser parity and CLI retirement, then release verification. Agents do not commit; the user commits each verified checkpoint.
 
 The FindIT implementation roadmap is organized into 8 sequential milestones, moving from core foundation and extraction to dense vector retrieval, rank fusion, UI integration, and synchronization resilience.
 
@@ -125,7 +129,7 @@ gantt
 - [x] Initial search displays top-10 passages with functional "Show more" batching.
 - [x] Multiple passages from the same document can appear independently.
 - [x] Clicking a result card opens the in-app Passage Inspector with faithful text.
-- [x] Source location coordinates (Page X of Y, Slide N, Lines X–Y) are accurate.
+- [x] Source location coordinates (Page X / Pages X–Y, Slide N, Lines X–Y) are accurate.
 - [x] "Open in folder" opens the native file explorer without opening the passage modal.
 
 ### Indexing & Reliability

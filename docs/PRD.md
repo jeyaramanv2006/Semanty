@@ -21,7 +21,7 @@ Human memory works through associative meaning, contextual fragments, and themat
 When users cannot remember the exact filename, path, or precise syntax, existing tools fail.
 
 ### 1.2 The Solution
-**FindIT** is a local-first, single-user desktop search application that bridges human memory and local document storage. Users register approved local directories; FindIT extracts text, segments it into semantic passages while preserving precise source-location metadata, and builds both a semantic vector index (FAISS) and a lexical index (BM25). 
+**FindIT** is a local-first, single-user document search application whose primary interactive client is a keyboard-first Textual TUI, with a supported local React browser client. Users register approved local directories; FindIT extracts text, segments it into semantic passages while preserving precise source-location metadata, and builds both a semantic vector index (FAISS) and a lexical index (BM25).
 
 When a user searches using conversational or partial recollections, FindIT retrieves matching passages using hybrid retrieval fused via Reciprocal Rank Fusion (RRF), presenting a single, unified list of the most relevant passages.
 
@@ -49,7 +49,7 @@ When a user searches using conversational or partial recollections, FindIT retri
 
 1. **Search by Remembered Context**: Optimize for natural-language descriptions, semantic intent, and fuzzy conceptual queries rather than strict Boolean syntax.
 2. **Show Empirical Evidence**: Deliver actual extracted passages in an in-app inspector—never generate hallucinations, AI summaries, or synthetic text.
-3. **Preserve Exact Provenance**: Every search result must link directly to its physical file and provide precise location metadata (Page X of Y, Slide N, Line ranges, or Section heading).
+3. **Preserve Exact Provenance**: Every search result must link directly to its physical file and provide precise location metadata (Page X or Pages X–Y, Slide N, Line ranges, or Section heading).
 4. **Local-First & Zero-Cloud Dependency**: Indexing, embedding generation, ranking, and search execution occur 100% locally on the user's workstation.
 5. **One Unified, Ranked List**: Abstract ranking complexity into a single hybrid list ordered by Reciprocal Rank Fusion (RRF). Avoid dividing the UI into confusing technical tabs (semantic vs. lexical).
 6. **Honest System Transparency**: Never fabricate mock progress bars, estimated scores, or artificial confidence percentages. Display real backend status, counts, and errors.
@@ -88,7 +88,7 @@ When a user searches using conversational or partial recollections, FindIT retri
 - **Row Attributes**:
   - File-type icon (PDF, PPTX, MD, Code, TXT, DOCX).
   - Prominent filename.
-  - Granular location badge (`Page 18 of 48`, `Slide 7`, `Lines 112–138`, `Section: Access Control`).
+  - Granular location badge (`Pages 18–20`, `Slide 7`, `Lines 112–138`, `Section: Access Control`).
   - Abbreviated directory path.
   - Independent **"Open in folder"** icon button.
 - **Passage-Level Granularity**: Multiple distinct, highly-ranked passages from the same document appear independently. Results are not prematurely collapsed by file.
@@ -113,6 +113,12 @@ When a user searches using conversational or partial recollections, FindIT retri
   - "Add Directory": Triggers an OS directory picker to register a new approved root.
   - "Remove Directory": Clears FindIT's internal SQLite, FAISS, and BM25 index records only. Clearly clarifies that original files are untouched.
 - **Progress Tracking**: Real-time feedback reflecting actual pipeline stages (Scanning, Extracting, Embedding, Indexing) and file counts.
+
+### 4.6 Primary Textual TUI
+- The TUI provides search, pagination, passage inspection, native file actions, directory management, sync monitoring, health, and recovery through the local REST API.
+- Wide terminals use stable source/job, results, and inspector panels. Narrow terminals collapse secondary panels without losing selection or scroll state.
+- `/`, Enter, arrows/`j`/`k`, `o`, `f`, `a`, `d`, `s`, `S`, `?`, Escape, and `q` are discoverable through contextual help and the footer.
+- The TUI displays factual job stages, counts, and durable errors without technical ranking toggles or synthetic confidence values.
 
 ---
 

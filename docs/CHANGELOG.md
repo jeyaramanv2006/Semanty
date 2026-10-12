@@ -5,6 +5,22 @@ All notable changes to the FindIT project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Completed
+- Adopt the FastAPI backend as the sole authoritative search engine.
+- Added a primary Textual TUI over the local REST API with full search, inspection, directory, and sync workflows.
+- Standardize user-facing search on one backend-provided hybrid RRF ordering.
+- Retired the independent CLI engine after TUI parity; distributable packaging remains out of scope.
+
+- Unified directory registration and synchronization behind real asynchronous backend jobs.
+- Enforced hybrid-only ordering for normal API and UI clients and corrected multi-page labels.
+- Added the Textual TUI with backend lifecycle ownership, search, inspection, directory management, sync monitoring, and terminal-focused tests.
+- Removed the independent `cli/` engine and its separate index format.
+- Kept the React client supported, removed ranking-mode controls, and verified frontend lint/build.
+
+Verification: backend contract/indexing suites and Textual tests pass in the project virtualenv; frontend lint and production build pass. Interactive PTY smoke testing remains a manual release check on the target terminal.
+
 ---
 
 ## [0.1.0] - 2026-10-11

@@ -24,8 +24,7 @@ export async function checkBackendHealth(): Promise<HealthStatus | null> {
 export async function searchPassages(
   query: string,
   limit: number = 20,
-  offset: number = 0,
-  rankingMode: 'hybrid' | 'semantic' | 'lexical' = 'hybrid'
+  offset: number = 0
 ): Promise<{ query: string; total_available: number; results: SearchResult[]; next_offset?: number | null }> {
   const trimmed = query.trim();
   if (!trimmed) {
@@ -36,7 +35,7 @@ export async function searchPassages(
     const response = await fetch(`${API_BASE_URL}/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: trimmed, limit, offset, ranking_mode: rankingMode }),
+      body: JSON.stringify({ query: trimmed, limit, offset }),
     });
 
     if (response.ok) {
@@ -53,13 +52,9 @@ export async function searchPassages(
       throw new Error(msg);
     }
   } catch (err: unknown) {
-    // Re-throw if it's an error from backend response
-    if (err instanceof Error && !err.message.includes('Failed to fetch')) {
-      throw err;
-    }
-    // If backend is completely offline/unreachable, return empty
     loggerFallback('search', err);
-    return { query: trimmed, total_available: 0, results: [] };
+    if (err instanceof Error && err.message) throw err;
+    throw new Error('Backend unavailable. Start FindIT and try again.');
   }
 }
 
