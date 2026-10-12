@@ -3,4 +3,4 @@
 Initial developer setup notes.
 
 ## Troubleshooting
-- Check local port 8000.
+- Ensure backend is active on port 8000.
